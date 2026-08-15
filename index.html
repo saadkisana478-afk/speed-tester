@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Throughput — website speed diagnostics</title>
+<meta name="description" content="Run a real Lighthouse-powered speed check on any website. Free, accurate, no signup." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#12161f;
+    --ink-soft:#4b5262;
+    --paper:#fafaf8;
+    --panel:#ffffff;
+    --line:#e4e1d8;
+    --steel:#2f5d9e;
+    --steel-deep:#20406e;
+    --good:#1f9d66;
+    --warn:#d98a2b;
+    --poor:#d9463a;
+    --mono: "IBM Plex Mono", ui-monospace, monospace;
+    --sans: "IBM Plex Sans", system-ui, sans-serif;
+  }
+
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:0.01ms !important; transition-duration:0.01ms !important;}
+  }
+
+  a{color:var(--steel);}
+  :focus-visible{outline:2px solid var(--steel); outline-offset:2px;}
+
+  .wrap{max-width:920px; margin:0 auto; padding:0 24px;}
+
+  /* ---------- Header ---------- */
+  header{
+    padding:28px 0 20px;
+    border-bottom:1px solid var(--line);
+  }
+  .brand{
+    display:flex; align-items:baseline; gap:10px;
+    font-family:var(--mono); font-weight:700; font-size:18px;
+    letter-spacing:-0.01em;
+  }
+  .brand .dot{
+    width:9px; height:9px; border-radius:50%;
+    background:var(--good);
+    display:inline-block;
+    box-shadow:0 0 0 3px rgba(31,157,102,0.15);
+  }
+  .brand small{
+    font-family:var(--sans); font-weight:400; color:var(--ink-soft); font-size:13px;
+  }
+
+  /* ---------- Hero / console ---------- */
+  .hero{padding:56px 0 40px;}
+  .hero h1{
+    font-family:var(--mono);
+    font-size:clamp(28px, 4.6vw, 44px);
+    line-height:1.12;
+    letter-spacing:-0.02em;
+    margin:0 0 14px;
+  }
+  .hero h1 .accent{color:var(--steel);}
+  .hero p.lede{
+    font-size:17px; color:var(--ink-soft); max-width:56ch; margin:0 0 32px; line-height:1.55;
+  }
+
+  .console{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:20px;
+    box-shadow:0 1px 0 rgba(18,22,31,0.02);
+  }
+  .console-top{
+    display:flex; gap:8px; align-items:center; margin-bottom:14px;
+    font-family:var(--mono); font-size:12px; color:var(--ink-soft);
+  }
+  .console-top .lights{display:flex; gap:6px;}
+  .console-top .lights span{width:8px; height:8px; border-radius:50%; background:var(--line);}
+
+  form{display:flex; gap:10px; flex-wrap:wrap;}
+  .url-field{
+    flex:1 1 320px;
+    display:flex; align-items:center;
+    border:1px solid var(--line);
+    border-radius:8px;
+    background:var(--paper);
+    padding:0 14px;
+  }
+  .url-field span{font-family:var(--mono); color:var(--ink-soft); font-size:14px; margin-right:2px;}
+  .url-field input{
+    flex:1; border:0; background:transparent; padding:14px 4px;
+    font-family:var(--mono); font-size:15px; color:var(--ink); min-width:0;
+  }
+  .url-field input:focus{outline:none;}
+
+  .strategy-toggle{
+    display:flex; border:1px solid var(--line); border-radius:8px; overflow:hidden;
+    font-family:var(--mono); font-size:13px;
+  }
+  .strategy-toggle button{
+    border:0; background:var(--paper); color:var(--ink-soft);
+    padding:0 16px; cursor:pointer; font-family:inherit; font-size:inherit;
+  }
+  .strategy-toggle button.active{background:var(--ink); color:#fff;}
+  .strategy-toggle button:not(.active):hover{background:#f0efe9;}
+
+  button.run{
+    border:0; border-radius:8px; background:var(--steel); color:#fff;
+    font-family:var(--mono); font-weight:600; font-size:15px;
+    padding:0 24px; cursor:pointer; min-height:48px;
+    transition:background .15s ease;
+  }
+  button.run:hover{background:var(--steel-deep);}
+  button.run:disabled{background:var(--line); color:var(--ink-soft); cursor:progress;}
+
+  .hint{margin-top:12px; font-size:13px; color:var(--ink-soft);}
+  .error-box{
+    margin-top:14px; padding:12px 14px; border-radius:8px;
+    background:#fdf1ef; border:1px solid #f3cdc7; color:#8a2c22;
+    font-size:14px; display:none;
+  }
+  .error-box.show{display:block;}
+
+  /* ---------- Loading ---------- */
+  .loading{display:none; align-items:center; gap:10px; margin-top:18px; font-family:var(--mono); font-size:13px; color:var(--ink-soft);}
+  .loading.show{display:flex;}
+  .spinner{
+    width:14px; height:14px; border-radius:50%;
+    border:2px solid var(--line); border-top-color:var(--steel);
+    animation:spin .8s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  /* ---------- Results ---------- */
+  section.results{display:none; padding:44px 0 80px;}
+  section.results.show{display:block;}
+  .results-meta{
+    display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:8px;
+    margin-bottom:24px; padding-bottom:16px; border-bottom:1px solid var(--line);
+  }
+  .results-meta .url{font-family:var(--mono); font-size:15px; word-break:break-all;}
+  .results-meta .ts{font-family:var(--mono); font-size:12px; color:var(--ink-soft);}
+
+  .gauges{
+    display:grid; grid-template-columns:repeat(4, 1fr); gap:16px;
+    margin-bottom:36px;
+  }
+  @media (max-width: 640px){ .gauges{grid-template-columns:repeat(2, 1fr);} }
+
+  .gauge-card{
+    border:1px solid var(--line); border-radius:10px; background:var(--panel);
+    padding:18px 14px 16px; text-align:center;
+  }
+  .gauge-card .label{
+    font-family:var(--mono); font-size:11px; letter-spacing:.04em; text-transform:uppercase;
+    color:var(--ink-soft); margin-top:10px;
+  }
+  .gauge-svg{width:100%; max-width:120px; margin:0 auto;}
+  .gauge-number{font-family:var(--mono); font-weight:700; font-size:22px;}
+
+  .metrics{
+    display:grid; grid-template-columns:repeat(5, 1fr); gap:1px;
+    background:var(--line); border:1px solid var(--line); border-radius:10px; overflow:hidden;
+  }
+  @media (max-width: 640px){ .metrics{grid-template-columns:repeat(2, 1fr);} }
+  .metric-cell{background:var(--panel); padding:16px 14px;}
+  .metric-cell .m-label{font-family:var(--mono); font-size:11px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.03em;}
+  .metric-cell .m-value{font-family:var(--mono); font-weight:600; font-size:17px; margin-top:6px;}
+
+  /* ---------- How it works ---------- */
+  .how{padding:20px 0 80px; border-top:1px solid var(--line);}
+  .how h2{font-family:var(--mono); font-size:15px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-soft); margin:36px 0 18px;}
+  .how ol{margin:0; padding-left:20px; color:var(--ink-soft); font-size:15px; line-height:1.8;}
+
+  footer{border-top:1px solid var(--line); padding:20px 0 40px;}
+  footer p{font-family:var(--mono); font-size:12px; color:var(--ink-soft); margin:0;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="brand"><span class="dot"></span>throughput <small>/ website speed diagnostics</small></div>
+  </div>
+</header>
+
+<div class="wrap">
+  <section class="hero">
+    <h1>How fast does<br>your site <span class="accent">actually</span> load?</h1>
+    <p class="lede">Run a real Lighthouse test against any URL. Same engine, same scoring as Google's own tool — just here, plainly.</p>
+
+    <div class="console">
+      <div class="console-top">
+        <div class="lights"><span></span><span></span><span></span></div>
+        run-check.sh
+      </div>
+      <form id="check-form">
+        <div class="url-field">
+          <span>https://</span>
+          <input id="url-input" type="text" placeholder="example.com" autocomplete="off" spellcheck="false" required />
+        </div>
+        <div class="strategy-toggle" role="tablist" aria-label="Device strategy">
+          <button type="button" data-strategy="mobile" class="active" role="tab" aria-selected="true">mobile</button>
+          <button type="button" data-strategy="desktop" role="tab" aria-selected="false">desktop</button>
+        </div>
+        <button type="submit" class="run" id="run-btn">Run check</button>
+      </form>
+      <div class="loading" id="loading"><span class="spinner"></span> Fetching a fresh Lighthouse report — this usually takes 10–30 seconds…</div>
+      <div class="error-box" id="error-box"></div>
+      <p class="hint">No signup. No tracking of the URLs you test. Results come straight from Google's PageSpeed Insights API.</p>
+    </div>
+  </section>
+
+  <section class="results" id="results">
+    <div class="results-meta">
+      <span class="url" id="result-url"></span>
+      <span class="ts" id="result-ts"></span>
+    </div>
+
+    <div class="gauges" id="gauges"></div>
+
+    <div class="metrics" id="metrics"></div>
+  </section>
+
+  <section class="how">
+    <h2>How this works</h2>
+    <ol>
+      <li>You enter a URL and choose mobile or desktop.</li>
+      <li>The request goes to Google's PageSpeed Insights API, which runs a full Lighthouse audit on that page.</li>
+      <li>Scores for performance, accessibility, best practices and SEO come back, along with core loading metrics.</li>
+    </ol>
+  </section>
+</div>
+
+<footer>
+  <div class="wrap"><p>Powered by Google PageSpeed Insights.</p></div>
+</footer>
+
+<script>
+  const form = document.getElementById('check-form');
+  const urlInput = document.getElementById('url-input');
+  const runBtn = document.getElementById('run-btn');
+  const loading = document.getElementById('loading');
+  const errorBox = document.getElementById('error-box');
+  const resultsSection = document.getElementById('results');
+  const resultUrl = document.getElementById('result-url');
+  const resultTs = document.getElementById('result-ts');
+  const gaugesEl = document.getElementById('gauges');
+  const metricsEl = document.getElementById('metrics');
+  const strategyButtons = document.querySelectorAll('.strategy-toggle button');
+
+  let strategy = 'mobile';
+  strategyButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      strategyButtons.forEach(b => { b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
+      btn.classList.add('active');
+      btn.setAttribute('aria-selected','true');
+      strategy = btn.dataset.strategy;
+    });
+  });
+
+  function normalizeUrl(raw){
+    let v = raw.trim();
+    if(!v) return null;
+    if(!/^https?:\/\//i.test(v)) v = 'https://' + v;
+    try{ new URL(v); return v; } catch(e){ return null; }
+  }
+
+  function scoreColor(score){
+    if(score == null) return '#9aa0ab';
+    if(score >= 90) return getCss('--good');
+    if(score >= 50) return getCss('--warn');
+    return getCss('--poor');
+  }
+  function getCss(varName){
+    return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+  }
+
+  function gaugeSvg(score){
+    const color = scoreColor(score);
+    const pct = (score ?? 0) / 100;
+    const r = 44, cx = 60, cy = 60;
+    const circumference = Math.PI * r; // semicircle
+    const offset = circumference * (1 - pct);
+    return `
+      <svg class="gauge-svg" viewBox="0 0 120 70" fill="none">
+        <path d="M 16 60 A 44 44 0 0 1 104 60" stroke="#e4e1d8" stroke-width="10" stroke-linecap="round"/>
+        <path d="M 16 60 A 44 44 0 0 1 104 60" stroke="${color}" stroke-width="10" stroke-linecap="round"
+          stroke-dasharray="${circumference}" stroke-dashoffset="${offset}"
+          style="transition: stroke-dashoffset 1s cubic-bezier(.3,.9,.3,1);"/>
+      </svg>
+      <div class="gauge-number" style="color:${color}">${score ?? '—'}</div>
+    `;
+  }
+
+  function renderGauges(scores){
+    const items = [
+      ['Performance', scores.performance],
+      ['Accessibility', scores.accessibility],
+      ['Best practices', scores.bestPractices],
+      ['SEO', scores.seo],
+    ];
+    gaugesEl.innerHTML = items.map(([label, score]) => `
+      <div class="gauge-card">
+        ${gaugeSvg(null)}
+        <div class="label">${label}</div>
+      </div>
+    `).join('');
+
+    // animate in after paint
+    requestAnimationFrame(() => {
+      gaugesEl.querySelectorAll('.gauge-card').forEach((card, i) => {
+        card.innerHTML = gaugeSvg(items[i][1]) + `<div class="label">${items[i][0]}</div>`;
+      });
+    });
+  }
+
+  function renderMetrics(m){
+    const items = [
+      ['First Contentful Paint', m.fcp],
+      ['Largest Contentful Paint', m.lcp],
+      ['Total Blocking Time', m.tbt],
+      ['Cumulative Layout Shift', m.cls],
+      ['Speed Index', m.speedIndex],
+    ];
+    metricsEl.innerHTML = items.map(([label, value]) => `
+      <div class="metric-cell">
+        <div class="m-label">${label}</div>
+        <div class="m-value">${value}</div>
+      </div>
+    `).join('');
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const target = normalizeUrl(urlInput.value);
+    errorBox.classList.remove('show');
+    if(!target){
+      errorBox.textContent = 'That doesn\'t look like a valid URL. Try something like example.com';
+      errorBox.classList.add('show');
+      return;
+    }
+
+    runBtn.disabled = true;
+    loading.classList.add('show');
+    resultsSection.classList.remove('show');
+
+    try{
+      const res = await fetch(`/api/pagespeed?url=${encodeURIComponent(target)}&strategy=${strategy}`);
+      const data = await res.json();
+
+      if(!res.ok){
+        throw new Error(data.error || 'Something went wrong.');
+      }
+
+      resultUrl.textContent = data.finalUrl || data.requestedUrl;
+      resultTs.textContent = `${data.strategy} · ${new Date(data.fetchedAt).toLocaleTimeString()}`;
+      renderGauges(data.scores);
+      renderMetrics(data.metrics);
+      resultsSection.classList.add('show');
+      resultsSection.scrollIntoView({behavior:'smooth', block:'start'});
+    }catch(err){
+      errorBox.textContent = err.message || 'Could not run the check. Try again in a moment.';
+      errorBox.classList.add('show');
+    }finally{
+      runBtn.disabled = false;
+      loading.classList.remove('show');
+    }
+  });
+</script>
+
+</body>
+</html>
